@@ -16,14 +16,7 @@ class SorbetRails::ModelPlugins::ActiveRecordAttribute < SorbetRails::ModelPlugi
 
     columns_hash.sort.each do |column_name, column_def|
       if model_defined_enums.has_key?(column_name)
-        generate_enum_methods(
-          root,
-          model_class_rbi,
-          attribute_module_rbi,
-          model_defined_enums,
-          column_name,
-          column_def,
-        )
+        generate_enum_methods(attribute_module_rbi, column_name, column_def)
       elsif serialization_coder_for_column(column_name)
         next # handled by the ActiveRecordSerializedAttribute plugin
       else
@@ -50,79 +43,33 @@ class SorbetRails::ModelPlugins::ActiveRecordAttribute < SorbetRails::ModelPlugi
 
   sig {
     params(
-      root: Parlour::RbiGenerator::Namespace,
-      model_class_rbi: Parlour::RbiGenerator::Namespace,
       attribute_module_rbi:  Parlour::RbiGenerator::Namespace,
-      model_defined_enums: T::Hash[String, T::Hash[String, T.untyped]],
       column_name: String,
       column_def: T.untyped,
     ).void
   }
   def generate_enum_methods(
-    root,
-    model_class_rbi,
     attribute_module_rbi,
-    model_defined_enums,
     column_name,
     column_def
   )
-    should_skip_setter_getter = false
     nilable_column = nilable_column?(column_def)
+    assignable_type = "T.any(Integer, String, Symbol)"
+    assignable_type = "T.nilable(#{assignable_type})" if nilable_column
+    return_type = "String"
+    return_type = "T.nilable(#{return_type})" if nilable_column
 
-    if @model_class.is_a?(::ActiveRecord::Enum)
-      config = @model_class.typed_enum_reflections[column_name]
-      if config.present?
-        # do not generate the methods for enums in strict_mode
-        should_skip_setter_getter = config.strict_mode
-
-        root.create_class(model_class_name) do |model_class|
-          # define T::Enum class & values
-          enum_values = T.must(model_defined_enums[column_name])
-          t_enum_values = @model_class.gen_typed_enum_values(enum_values.keys)
-          model_class.create_enum_class(
-            config.class_name,
-            enums: t_enum_values.map { |k, v| [v, "%q{#{k}}"] },
-          )
-        end
-
-        # define t_enum setter/getter
-        assignable_type = "#{model_class_name}::#{config.class_name}"
-        assignable_type = "T.nilable(#{assignable_type})" if nilable_column
-        # add directly to model_class_rbi because they are included
-        # by sorbet's hidden.rbi
-        model_class_rbi.create_method(
-          "typed_#{column_name}",
-          return_type: assignable_type,
-        )
-        model_class_rbi.create_method(
-          "typed_#{column_name}=",
-          parameters: [
-            Parameter.new("value", type: assignable_type)
-          ],
-          return_type: nil,
-        )
-      end
-    end
-
-    if !should_skip_setter_getter
-      # enum attribute is treated differently
-      assignable_type = "T.any(Integer, String, Symbol)"
-      assignable_type = "T.nilable(#{assignable_type})" if nilable_column
-      return_type = "String"
-      return_type = "T.nilable(#{return_type})" if nilable_column
-
-      attribute_module_rbi.create_method(
-        column_name.to_s,
-        return_type: return_type,
-      )
-      attribute_module_rbi.create_method(
-        "#{column_name}=",
-        parameters: [
-          Parameter.new("value", type: assignable_type)
-        ],
-        return_type: nil,
-      )
-    end
+    attribute_module_rbi.create_method(
+      column_name.to_s,
+      return_type: return_type,
+    )
+    attribute_module_rbi.create_method(
+      "#{column_name}=",
+      parameters: [
+        Parameter.new("value", type: assignable_type)
+      ],
+      return_type: nil,
+    )
   end
 
   sig { params(column_type: ColumnType).returns(String) }

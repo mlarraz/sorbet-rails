@@ -13,7 +13,6 @@ class SorbetRails::Railtie < Rails::Railtie
 
   initializer "sorbet-rails.initialize" do
     ActiveSupport.on_load(:active_record) do
-      require "sorbet-rails/rails_mixins/active_record_overrides"
       require "sorbet-rails/rails_mixins/custom_finder_methods"
       require "sorbet-rails/rails_mixins/pluck_to_tstruct"
 
