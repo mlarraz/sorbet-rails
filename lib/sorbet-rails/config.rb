@@ -50,7 +50,6 @@ module SorbetRails
     def initialize
       @enabled_gem_plugins = []
       @enabled_model_plugins = [
-        :active_record_enum,
         :active_record_named_scope,
         :active_record_querying,
         :active_relation_where_not,
