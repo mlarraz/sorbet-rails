@@ -95,6 +95,7 @@ build-iPhoneSimulator/
 *.swk
 
 sorbet/rbi/hidden-definitions/errors.txt
+.idea
 .vscode
 
 .rake_tasks~
